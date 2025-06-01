@@ -88,7 +88,7 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
     }
 }
 
-void vTaskMQTTPrates(void *pvParameters) {
+void vMqttTask(void *pvParameters) {
     INFO_printf("mqtt client starting\n");
 
     static MQTT_CLIENT_DATA_T state;
