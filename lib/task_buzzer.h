@@ -43,7 +43,6 @@ void vAlarmeTask() {
         condicaoCritica = (temperatura < LIMITE_BAIXO || temperatura > LIMITE_ALTO);
 
         if (!desativarAlarme && condicaoCritica) {
-            if (!alarmeAtivo) printf("Alarme ativado\n");
             alarmeAtivo = true; 
             buzzer_start_alarm();
             vTaskDelay(pdMS_TO_TICKS(150));
@@ -51,13 +50,11 @@ void vAlarmeTask() {
             vTaskDelay(pdMS_TO_TICKS(100));
         } else {
             buzzer_stop_alarm();
-            if (alarmeAtivo) printf("Alarme desativado\n");
             alarmeAtivo = false;   
         }
 
         if (!condicaoCritica && desativarAlarme) {
             desativarAlarme = false;
-            printf("Alarme rearmado automaticamente.\n");
         }
 
         vTaskDelay(pdMS_TO_TICKS(50));

@@ -14,7 +14,6 @@ void vBotaoTask() {
         bool estadoAtual = gpio_get(BOTAO_PIN);
         if (!estadoAtual && estadoAnteriorBotao) {
             desativarAlarme = true;
-            printf("Alarme desativado!\n");
         }
         estadoAnteriorBotao = estadoAtual;
         vTaskDelay(pdMS_TO_TICKS(100));
