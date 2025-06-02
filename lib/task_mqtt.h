@@ -10,8 +10,8 @@
 #include "lwip/dns.h"
 #include "lwip/altcp_tls.h"
 
-#define WIFI_SSID "Kira_Oreo"
-#define WIFI_PASS "Aaik1987"
+#define WIFI_SSID "suarede"
+#define WIFI_PASS "suasenha"
 #define MQTT_SERVER "192.168.0.122"
 #define MQTT_USERNAME "admin"
 #define MQTT_PASSWORD "admin123"
