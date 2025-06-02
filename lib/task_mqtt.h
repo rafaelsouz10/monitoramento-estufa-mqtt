@@ -10,11 +10,12 @@
 #include "lwip/dns.h"
 #include "lwip/altcp_tls.h"
 
-#define WIFI_SSID "suarede"
-#define WIFI_PASS "suasenha"
+// Configurações de rede e MQTT
+#define WIFI_SSID "Kira_Oreo"
+#define WIFI_PASS "Aaik1987"
 #define MQTT_SERVER "192.168.0.122"
-#define MQTT_USERNAME "admin"
-#define MQTT_PASSWORD "admin123"
+#define MQTT_USERNAME "admin_rafael"
+#define MQTT_PASSWORD "rafael1234"
 #define MQTT_KEEP_ALIVE_S 60
 #define MQTT_WILL_TOPIC "/online"
 #define MQTT_WILL_MSG "0"
@@ -36,37 +37,53 @@ typedef struct {
     struct mqtt_connect_client_info_t mqtt_client_info;
     ip_addr_t mqtt_server_address;
     bool connect_done;
+    char topic[MQTT_TOPIC_LEN];
 } MQTT_CLIENT_DATA_T;
 
+// Prototipações
+static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg);
+static void reconnect_mqtt_client(MQTT_CLIENT_DATA_T *state);
+
+// Callback chamado ao receber um novo tópico publicado
 static void mqtt_incoming_publish_cb(void *arg, const char *topic, u32_t tot_len) {
-    printf("Mensagem publicada no topico: %s\n", topic);
+    MQTT_CLIENT_DATA_T* state = (MQTT_CLIENT_DATA_T*)arg;
+    strncpy(state->topic, topic, sizeof(state->topic));
+    INFO_printf("⚡ Publicação recebida no tópico: %s\n", topic);
 }
 
+// Callback chamado ao receber dados do tópico publicado
 static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t flags) {
+    MQTT_CLIENT_DATA_T* state = (MQTT_CLIENT_DATA_T*)arg;
     char msg[len + 1];
     memcpy(msg, data, len);
     msg[len] = '\0';
-    printf("Mensagem recebida: %s\n", msg);
+    INFO_printf("📨 Dados recebidos - Tópico: %s | Mensagem: %s\n", state->topic, msg);
 
-    if (strcmp(msg, "OFF") == 0) {
+    // Verifica se é comando para desativar o alarme
+    if (strcmp(state->topic, "/controle/alarme") == 0 && strcmp(msg, "OFF") == 0) {
         desativarAlarme = true;
-        printf("→ Alarme desativado via MQTT.\n");
+        INFO_printf("→ Alarme desativado via MQTT.\n");
     }
 }
 
+// Callback chamado após tentativa de conexão com o broker
 static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status) {
     MQTT_CLIENT_DATA_T* state = (MQTT_CLIENT_DATA_T*)arg;
     if (status == MQTT_CONNECT_ACCEPTED) {
         state->connect_done = true;
-        INFO_printf("Conectado ao broker MQTT com sucesso!\n");
+        INFO_printf("✅ Conectado ao broker MQTT com sucesso!\n");
 
         mqtt_subscribe(client, "/controle/alarme", 1, NULL, NULL);
-        mqtt_set_inpub_callback(client, mqtt_incoming_publish_cb, mqtt_incoming_data_cb, NULL);
+        mqtt_set_inpub_callback(client, mqtt_incoming_publish_cb, mqtt_incoming_data_cb, state);
     } else {
-        ERROR_printf("Falha ao conectar ao broker: %d\n", status);
+        state->connect_done = false;
+        ERROR_printf("❌ Falha ao conectar ao broker: %d\n", status);
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        reconnect_mqtt_client(state);
     }
 }
 
+// Inicia o cliente MQTT
 static void start_client(MQTT_CLIENT_DATA_T *state) {
     state->mqtt_client_inst = mqtt_client_new();
     if (!state->mqtt_client_inst) panic("Erro ao criar cliente MQTT");
@@ -78,6 +95,7 @@ static void start_client(MQTT_CLIENT_DATA_T *state) {
     cyw43_arch_lwip_end();
 }
 
+// Função chamada após resolver o endereço do broker via DNS
 static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) {
     MQTT_CLIENT_DATA_T *state = (MQTT_CLIENT_DATA_T*)arg;
     if (ipaddr) {
@@ -88,30 +106,44 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
     }
 }
 
+// Tenta reconectar ao broker
+static void reconnect_mqtt_client(MQTT_CLIENT_DATA_T *state) {
+    cyw43_arch_lwip_begin();
+    int err = dns_gethostbyname(MQTT_SERVER, &state->mqtt_server_address, dns_found, state);
+    cyw43_arch_lwip_end();
+
+    if (err == ERR_OK) {
+        start_client(state);
+    } else if (err != ERR_INPROGRESS) {
+        ERROR_printf("Falha ao resolver DNS\n");
+    }
+}
+
+// Task principal MQTT com loop de publicação dos dados
 void vMqttTask(void *pvParameters) {
-    INFO_printf("mqtt client starting\n");
+    INFO_printf("📡 Iniciando task MQTT\n");
 
     static MQTT_CLIENT_DATA_T state;
 
-    if (cyw43_arch_init()) panic("Failed to initialize CYW43");
+    if (cyw43_arch_init()) panic("Falha ao iniciar CYW43");
 
     cyw43_arch_enable_sta_mode();
     if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASS, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
-        panic("Failed to connect to Wi-Fi");
+        panic("Falha ao conectar no Wi-Fi");
     }
 
+    // Gera nome único para o cliente
     char unique_id_buf[5];
     pico_get_unique_board_id_string(unique_id_buf, sizeof(unique_id_buf));
-    for (int i = 0; i < sizeof(unique_id_buf) - 1; i++) {
-        unique_id_buf[i] = tolower(unique_id_buf[i]);
-    }
+    for (int i = 0; i < sizeof(unique_id_buf) - 1; i++) unique_id_buf[i] = tolower(unique_id_buf[i]);
 
     char client_id_buf[sizeof(MQTT_DEVICE_NAME) + sizeof(unique_id_buf) - 1];
     memcpy(client_id_buf, MQTT_DEVICE_NAME, sizeof(MQTT_DEVICE_NAME) - 1);
     memcpy(&client_id_buf[sizeof(MQTT_DEVICE_NAME) - 1], unique_id_buf, sizeof(unique_id_buf) - 1);
     client_id_buf[sizeof(client_id_buf) - 1] = 0;
-    INFO_printf("Device name %s\n", client_id_buf);
+    INFO_printf("🆔 Device name %s\n", client_id_buf);
 
+    // Configura informações do cliente MQTT
     state.mqtt_client_info.client_id = client_id_buf;
     state.mqtt_client_info.keep_alive = MQTT_KEEP_ALIVE_S;
     state.mqtt_client_info.client_user = MQTT_USERNAME;
@@ -124,16 +156,10 @@ void vMqttTask(void *pvParameters) {
     state.mqtt_client_info.will_qos = MQTT_WILL_QOS;
     state.mqtt_client_info.will_retain = true;
 
-    cyw43_arch_lwip_begin();
-    int err = dns_gethostbyname(MQTT_SERVER, &state.mqtt_server_address, dns_found, &state);
-    cyw43_arch_lwip_end();
+    // Inicia a conexão MQTT
+    reconnect_mqtt_client(&state);
 
-    if (err == ERR_OK) {
-        start_client(&state);
-    } else if (err != ERR_INPROGRESS) {
-        panic("dns request failed");
-    }
-
+    // Loop principal: publica os dados dos sensores periodicamente
     while (!state.connect_done || mqtt_client_is_connected(state.mqtt_client_inst)) {
         cyw43_arch_poll();
 
@@ -155,12 +181,12 @@ void vMqttTask(void *pvParameters) {
         const char *alarme = alarmeAtivo ? "ON" : "OFF";
         mqtt_publish(state.mqtt_client_inst, "/alarme", alarme, strlen(alarme), 1, 0, NULL, NULL);
 
-        INFO_printf("DHT -> Temp: %s°C | Umi: %s%% | Pot: %s°C | Alarme: %s | Estado: %s\n", payload_dht, payload_umi, payload_pot, alarme, estado);
+        INFO_printf("📤 DHT: %s°C | UMI: %s%% | POT: %s°C | Alarme: %s | Estado: %s\n", payload_dht, payload_umi, payload_pot, alarme, estado);
 
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
 
-    INFO_printf("mqtt client exiting\n");
+    INFO_printf("📴 Finalizando task MQTT\n");
     vTaskDelete(NULL);
 }
 
