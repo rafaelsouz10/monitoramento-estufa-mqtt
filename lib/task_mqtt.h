@@ -48,7 +48,7 @@ static void reconnect_mqtt_client(MQTT_CLIENT_DATA_T *state);
 static void mqtt_incoming_publish_cb(void *arg, const char *topic, u32_t tot_len) {
     MQTT_CLIENT_DATA_T* state = (MQTT_CLIENT_DATA_T*)arg;
     strncpy(state->topic, topic, sizeof(state->topic));
-    INFO_printf("⚡ Publicação recebida no tópico: %s\n", topic);
+    INFO_printf("Publicação recebida no tópico: %s\n", topic);
 }
 
 // Callback chamado ao receber dados do tópico publicado
@@ -57,7 +57,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     char msg[len + 1];
     memcpy(msg, data, len);
     msg[len] = '\0';
-    INFO_printf("📨 Dados recebidos - Tópico: %s | Mensagem: %s\n", state->topic, msg);
+    INFO_printf("Dados recebidos - Tópico: %s | Mensagem: %s\n", state->topic, msg);
 
     // Verifica se é comando para desativar o alarme
     if (strcmp(state->topic, "/controle/alarme") == 0 && strcmp(msg, "OFF") == 0) {
@@ -71,13 +71,13 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
     MQTT_CLIENT_DATA_T* state = (MQTT_CLIENT_DATA_T*)arg;
     if (status == MQTT_CONNECT_ACCEPTED) {
         state->connect_done = true;
-        INFO_printf("✅ Conectado ao broker MQTT com sucesso!\n");
+        INFO_printf("Conectado ao broker MQTT com sucesso!\n");
 
         mqtt_subscribe(client, "/controle/alarme", 1, NULL, NULL);
         mqtt_set_inpub_callback(client, mqtt_incoming_publish_cb, mqtt_incoming_data_cb, state);
     } else {
         state->connect_done = false;
-        ERROR_printf("❌ Falha ao conectar ao broker: %d\n", status);
+        ERROR_printf("Falha ao conectar ao broker: %d\n", status);
         vTaskDelay(pdMS_TO_TICKS(5000));
         reconnect_mqtt_client(state);
     }
@@ -121,7 +121,7 @@ static void reconnect_mqtt_client(MQTT_CLIENT_DATA_T *state) {
 
 // Task principal MQTT com loop de publicação dos dados
 void vMqttTask(void *pvParameters) {
-    INFO_printf("📡 Iniciando task MQTT\n");
+    INFO_printf("Iniciando task MQTT\n");
 
     static MQTT_CLIENT_DATA_T state;
 
@@ -141,7 +141,7 @@ void vMqttTask(void *pvParameters) {
     memcpy(client_id_buf, MQTT_DEVICE_NAME, sizeof(MQTT_DEVICE_NAME) - 1);
     memcpy(&client_id_buf[sizeof(MQTT_DEVICE_NAME) - 1], unique_id_buf, sizeof(unique_id_buf) - 1);
     client_id_buf[sizeof(client_id_buf) - 1] = 0;
-    INFO_printf("🆔 Device name %s\n", client_id_buf);
+    INFO_printf("Device name %s\n", client_id_buf);
 
     // Configura informações do cliente MQTT
     state.mqtt_client_info.client_id = client_id_buf;
@@ -166,27 +166,32 @@ void vMqttTask(void *pvParameters) {
         char payload_dht[16];
         snprintf(payload_dht, sizeof(payload_dht), "%.1f", tempDHT);
         mqtt_publish(state.mqtt_client_inst, "/temp_dht", payload_dht, strlen(payload_dht), 1, 0, NULL, NULL);
+        cyw43_arch_poll();
 
         char payload_umi[16];
         snprintf(payload_umi, sizeof(payload_umi), "%.1f", umiDHT);
         mqtt_publish(state.mqtt_client_inst, "/umi_dht", payload_umi, strlen(payload_umi), 1, 0, NULL, NULL);
+        cyw43_arch_poll();
 
         char payload_pot[16];
         snprintf(payload_pot, sizeof(payload_pot), "%.2f", temperatura);
         mqtt_publish(state.mqtt_client_inst, "/temp_pot", payload_pot, strlen(payload_pot), 1, 0, NULL, NULL);
+        cyw43_arch_poll();
 
         const char *estado = condicaoCritica ? "CRITICO" : "OK";
         mqtt_publish(state.mqtt_client_inst, "/estado", estado, strlen(estado), 1, 0, NULL, NULL);
+        cyw43_arch_poll();
 
         const char *alarme = alarmeAtivo ? "ON" : "OFF";
         mqtt_publish(state.mqtt_client_inst, "/alarme", alarme, strlen(alarme), 1, 0, NULL, NULL);
+        cyw43_arch_poll();
 
-        INFO_printf("📤 DHT: %s°C | UMI: %s%% | POT: %s°C | Alarme: %s | Estado: %s\n", payload_dht, payload_umi, payload_pot, alarme, estado);
+        INFO_printf("DHT: %s°C | UMI: %s%% | POT: %s°C | Alarme: %s | Estado: %s\n", payload_dht, payload_umi, payload_pot, alarme, estado);
 
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
-    INFO_printf("📴 Finalizando task MQTT\n");
+    INFO_printf("Finalizando task MQTT\n");
     vTaskDelete(NULL);
 }
 
