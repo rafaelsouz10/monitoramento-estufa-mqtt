@@ -58,12 +58,12 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
     MQTT_CLIENT_DATA_T* state = (MQTT_CLIENT_DATA_T*)arg;
     if (status == MQTT_CONNECT_ACCEPTED) {
         state->connect_done = true;
-        INFO_printf("✅ Conectado ao broker MQTT com sucesso!\n");
+        INFO_printf("Conectado ao broker MQTT com sucesso!\n");
 
         mqtt_subscribe(client, "/controle/alarme", 1, NULL, NULL);
         mqtt_set_inpub_callback(client, mqtt_incoming_publish_cb, mqtt_incoming_data_cb, NULL);
     } else {
-        ERROR_printf("❌ Falha ao conectar ao broker: %d\n", status);
+        ERROR_printf("Falha ao conectar ao broker: %d\n", status);
     }
 }
 
