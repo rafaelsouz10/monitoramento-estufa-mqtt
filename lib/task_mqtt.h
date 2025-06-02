@@ -1,21 +1,22 @@
 #ifndef TASK_MQTT_H
 #define TASK_MQTT_H
 
-#include "pico/stdlib.h"
-#include "hardware/adc.h"
-#include "pico/cyw43_arch.h"
-#include "pico/unique_id.h"
-#include "lwip/apps/mqtt.h"
-#include "lwip/apps/mqtt_priv.h"
-#include "lwip/dns.h"
-#include "lwip/altcp_tls.h"
+#include "pico/stdlib.h"            // Biblioteca da Raspberry Pi Pico para funções padrão (GPIO, temporização, etc.)
+#include "pico/cyw43_arch.h"        // Biblioteca para arquitetura Wi-Fi da Pico com CYW43
+#include "pico/unique_id.h"         // Biblioteca com recursos para trabalhar com os pinos GPIO do Raspberry Pi Pico
+
+#include "lwip/apps/mqtt.h"         // Biblioteca LWIP MQTT -  fornece funções e recursos para conexão MQTT
+#include "lwip/apps/mqtt_priv.h"    // Biblioteca que fornece funções e recursos para Geração de Conexões
+#include "lwip/dns.h"               // Biblioteca que fornece funções e recursos suporte DNS:
+#include "lwip/altcp_tls.h"         // Biblioteca que fornece funções e recursos para conexões seguras usando TLS:
 
 // Configurações de rede e MQTT
-#define WIFI_SSID "Kira_Oreo"
-#define WIFI_PASS "Aaik1987"
-#define MQTT_SERVER "192.168.0.122"
-#define MQTT_USERNAME "admin_rafael"
-#define MQTT_PASSWORD "rafael1234"
+#define WIFI_SSID "Kira_Oreo"        // Substitua pelo nome da sua rede Wi-Fi
+#define WIFI_PASSWORD "Aaik1987"     // Substitua pela senha da sua rede Wi-Fi
+#define MQTT_SERVER "192.168.0.122"  // Substitua pelo endereço do host - broket MQTT: Ex: 192.168.1.107
+#define MQTT_USERNAME "admin_rafael" // Substitua pelo nome da host MQTT - Username
+#define MQTT_PASSWORD "rafael1234"   // Substitua pelo Password da host MQTT - credencial de acesso - caso exista
+
 #define MQTT_KEEP_ALIVE_S 60
 #define MQTT_WILL_TOPIC "/online"
 #define MQTT_WILL_MSG "0"
@@ -31,16 +32,16 @@
 #define ERROR_printf printf
 #endif
 
-// Estrutura do cliente MQTT
+// Estrutura que armazena as informações do cliente MQTT
 typedef struct {
-    mqtt_client_t* mqtt_client_inst;
-    struct mqtt_connect_client_info_t mqtt_client_info;
-    ip_addr_t mqtt_server_address;
-    bool connect_done;
-    char topic[MQTT_TOPIC_LEN];
+    mqtt_client_t* mqtt_client_inst;                    // Ponteiro para cliente MQTT
+    struct mqtt_connect_client_info_t mqtt_client_info; // Informações do cliente
+    ip_addr_t mqtt_server_address;                      // Endereço IP do broker
+    bool connect_done;                                  // Status da conexão
+    char topic[MQTT_TOPIC_LEN];                         // Último tópico recebido
 } MQTT_CLIENT_DATA_T;
 
-// Prototipações
+// Prototipações de funções auxiliares
 static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg);
 static void reconnect_mqtt_client(MQTT_CLIENT_DATA_T *state);
 
@@ -59,21 +60,24 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
     msg[len] = '\0';
     INFO_printf("Dados recebidos - Tópico: %s | Mensagem: %s\n", state->topic, msg);
 
-    // Verifica se é comando para desativar o alarme
+    // Se for tópico de controle e comando for OFF, desativa alarme
     if (strcmp(state->topic, "/controle/alarme") == 0 && strcmp(msg, "OFF") == 0) {
         desativarAlarme = true;
         INFO_printf("→ Alarme desativado via MQTT.\n");
     }
 }
 
-// Callback chamado após tentativa de conexão com o broker
+// Callback chamado após tentativa de conexão com o broker MQTT
 static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status) {
     MQTT_CLIENT_DATA_T* state = (MQTT_CLIENT_DATA_T*)arg;
     if (status == MQTT_CONNECT_ACCEPTED) {
         state->connect_done = true;
         INFO_printf("Conectado ao broker MQTT com sucesso!\n");
 
+        // Assina o tópico de controle de alarme
         mqtt_subscribe(client, "/controle/alarme", 1, NULL, NULL);
+
+        // Define callbacks para publicações recebidas
         mqtt_set_inpub_callback(client, mqtt_incoming_publish_cb, mqtt_incoming_data_cb, state);
     } else {
         state->connect_done = false;
@@ -83,7 +87,7 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
     }
 }
 
-// Inicia o cliente MQTT
+// Inicializa e conecta o cliente MQTT ao broker
 static void start_client(MQTT_CLIENT_DATA_T *state) {
     state->mqtt_client_inst = mqtt_client_new();
     if (!state->mqtt_client_inst) panic("Erro ao criar cliente MQTT");
@@ -125,14 +129,14 @@ void vMqttTask(void *pvParameters) {
 
     static MQTT_CLIENT_DATA_T state;
 
+    // Inicializa Wi-Fi
     if (cyw43_arch_init()) panic("Falha ao iniciar CYW43");
-
     cyw43_arch_enable_sta_mode();
-    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASS, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
+    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
         panic("Falha ao conectar no Wi-Fi");
     }
 
-    // Gera nome único para o cliente
+    // Gera identificador único do cliente
     char unique_id_buf[5];
     pico_get_unique_board_id_string(unique_id_buf, sizeof(unique_id_buf));
     for (int i = 0; i < sizeof(unique_id_buf) - 1; i++) unique_id_buf[i] = tolower(unique_id_buf[i]);
@@ -149,6 +153,7 @@ void vMqttTask(void *pvParameters) {
     state.mqtt_client_info.client_user = MQTT_USERNAME;
     state.mqtt_client_info.client_pass = MQTT_PASSWORD;
 
+    // Configura Last Will (mensagem caso desconecte inesperadamente)
     static char will_topic[MQTT_TOPIC_LEN];
     strncpy(will_topic, MQTT_WILL_TOPIC, sizeof(will_topic));
     state.mqtt_client_info.will_topic = will_topic;
@@ -163,6 +168,7 @@ void vMqttTask(void *pvParameters) {
     while (!state.connect_done || mqtt_client_is_connected(state.mqtt_client_inst)) {
         cyw43_arch_poll();
 
+        // Publica dados dos sensores
         char payload_dht[16];
         snprintf(payload_dht, sizeof(payload_dht), "%.1f", tempDHT);
         mqtt_publish(state.mqtt_client_inst, "/temp_dht", payload_dht, strlen(payload_dht), 1, 0, NULL, NULL);
