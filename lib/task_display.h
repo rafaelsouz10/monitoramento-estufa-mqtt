@@ -82,7 +82,7 @@ void vDisplayTask(){
         }
 
         // Status Wi-Fi
-        // ssd1306_draw_string(&ssd, (const char *)wifiIP, 0, 55);
+        ssd1306_draw_string(&ssd, (const char *)connBroker, 0, 55);
 
         // Envia os dados para o display
         ssd1306_send_data(&ssd);
