@@ -138,6 +138,8 @@ Abaixo está o mapeamento de conexões entre os componentes e a Raspberry Pi Pic
     - `/estado` (texto)
     - `/alarme` (indicador visual ON/OFF)
 - O painel permite monitorar a estufa em tempo real e desligar o alarme remotamente
+  
+![aplicacao-mqtt](https://github.com/user-attachments/assets/5f4efab9-ebbb-4f45-9d67-9bc6c075e0c6)
 
 ---
 
