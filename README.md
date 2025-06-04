@@ -22,8 +22,8 @@ Sistema embarcado de monitoramento ambiental com foco em estufas agrícolas. Uti
 
 ### 1. Clone o Repositório
 ```bash
-git clone https://github.com/rafaelsouz10/estufa-mqtt.git
-cd estufa-mqtt
+git clone https://github.com/rafaelsouz10/monitoramento-estufa-mqtt.git
+cd monitoramento-estufa-mqtt
 code .
 ```
 
