@@ -11,11 +11,11 @@
 #include "lwip/altcp_tls.h"         // Biblioteca que fornece funções e recursos para conexões seguras usando TLS:
 
 // Configurações de rede e MQTT
-#define WIFI_SSID "Kira_Oreo"       // Substitua pelo nome da sua rede Wi-Fi
-#define WIFI_PASSWORD "Aaik1987"    // Substitua pela senha da sua rede Wi-Fi
-#define MQTT_SERVER "192.168.0.122" // Substitua pelo endereço do host - broker MQTT
-#define MQTT_USERNAME "admin"       // Nome de usuário do broker MQTT
-#define MQTT_PASSWORD "rafael123"   // Senha do broker MQTT
+#define WIFI_SSID "SUA_REDE"         // Substitua pelo nome da sua rede Wi-Fi
+#define WIFI_PASSWORD "SUA_SENHA"    // Substitua pela senha da sua rede Wi-Fi
+#define MQTT_SERVER "192.168.0.122"  // Substitua pelo endereço do host - broker MQTT
+#define MQTT_USERNAME "admin"        // Nome de usuário do broker MQTT
+#define MQTT_PASSWORD "admin123"     // Senha do broker MQTT
 
 #define MQTT_KEEP_ALIVE_S 60         // Tempo de keep-alive em segundos. O cliente envia pings para manter a conexão ativa.
 #define MQTT_WILL_TOPIC "/online"    // Tópico de "Last Will" publicado automaticamente se o cliente desconectar inesperadamente.
