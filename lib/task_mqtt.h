@@ -11,18 +11,18 @@
 #include "lwip/altcp_tls.h"         // Biblioteca que fornece funções e recursos para conexões seguras usando TLS:
 
 // Configurações de rede e MQTT
-#define WIFI_SSID "Kira_Oreo"        // Substitua pelo nome da sua rede Wi-Fi
-#define WIFI_PASSWORD "Aaik1987"     // Substitua pela senha da sua rede Wi-Fi
-#define MQTT_SERVER "192.168.0.122"  // Substitua pelo endereço do host - broker MQTT
-#define MQTT_USERNAME "admin" // Nome de usuário do broker MQTT
+#define WIFI_SSID "Kira_Oreo"       // Substitua pelo nome da sua rede Wi-Fi
+#define WIFI_PASSWORD "Aaik1987"    // Substitua pela senha da sua rede Wi-Fi
+#define MQTT_SERVER "192.168.0.122" // Substitua pelo endereço do host - broker MQTT
+#define MQTT_USERNAME "admin"       // Nome de usuário do broker MQTT
 #define MQTT_PASSWORD "rafael123"   // Senha do broker MQTT
 
-#define MQTT_KEEP_ALIVE_S 60
-#define MQTT_WILL_TOPIC "/online"
-#define MQTT_WILL_MSG "0"
-#define MQTT_WILL_QOS 1
-#define MQTT_DEVICE_NAME "pico"
-#define MQTT_TOPIC_LEN 100
+#define MQTT_KEEP_ALIVE_S 60         // Tempo de keep-alive em segundos. O cliente envia pings para manter a conexão ativa.
+#define MQTT_WILL_TOPIC "/online"    // Tópico de "Last Will" publicado automaticamente se o cliente desconectar inesperadamente.
+#define MQTT_WILL_MSG "0"            // Mensagem publicada no tópico de "Last Will" indicando que o dispositivo está offline.
+#define MQTT_WILL_QOS 1              // Nível de Qualidade de Serviço (QoS) para a mensagem de "Last Will" (1 = pelo menos uma vez).
+#define MQTT_DEVICE_NAME "pico"      // Prefixo do nome do cliente MQTT (será combinado com o ID único da placa).
+#define MQTT_TOPIC_LEN 100           // Tamanho máximo permitido para o buffer de tópicos MQTT utilizados.
 
 #ifndef INFO_printf
 #define INFO_printf printf
@@ -119,7 +119,7 @@ static void reconnect_mqtt_client(MQTT_CLIENT_DATA_T *state) {
     }
 }
 
-// dns_found permanece, caso deseje voltar ao uso de nomes de domínio futuramente
+// dns_found permanece, caso utlizar nomes de domínio 
 static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) {
     MQTT_CLIENT_DATA_T *state = (MQTT_CLIENT_DATA_T*)arg;
     if (ipaddr) {
